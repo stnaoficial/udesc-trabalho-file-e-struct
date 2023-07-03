@@ -3,20 +3,14 @@
 #include<string.h>
 #include<stdbool.h>
 
-#define TARGET_FILE "database.bin"
-#define MAX_NAME_SIZE 100
-#define MAX_STYLE_SIZE 100
-#define MAX_ARTIST_NAME_SIZE 100
-#define MAX_ARTIST_NATIONALITY_SIZE 100
-
 // ------------------------------------------------------------------------------------
 
 // }
 // { Structs
 
 struct Artist {
-    char name[MAX_ARTIST_NAME_SIZE];
-    char nationality[MAX_ARTIST_NATIONALITY_SIZE];
+    char name[100];
+    char nationality[100];
 };
 
 struct Date {
@@ -26,9 +20,9 @@ struct Date {
 };
 
 struct Music {
-    char name[MAX_NAME_SIZE];
+    char name[100];
     int duration;
-    char style[MAX_STYLE_SIZE];
+    char style[100];
     struct Artist artist;
     struct Date date;
 };
@@ -41,9 +35,10 @@ struct Music {
 void read_artist(struct Artist *a);
 void read_date(struct Date *d);
 struct Music* load_musics(int *c);
-struct Music* read_music(struct Music *m, int c);
+struct Music* read_music(struct Music *m, int *c);
 void show_musics(struct Music *m, int c);
 void store_music(struct Music *m, int c);
+bool is_duplicate(struct Music *m, int count, const char *name);
 
 // ------------------------------------------------------------------------------------
 
@@ -90,7 +85,7 @@ void read_date(struct Date *d) {
 
 // Function to load music data from the binary file
 struct Music* load_musics(int *c) {
-    FILE *file = fopen(TARGET_FILE, "rb");
+    FILE *file = fopen("database.bin", "rb");
 
     if (file == NULL) {
         *c = 0;
@@ -108,42 +103,55 @@ struct Music* load_musics(int *c) {
 }
 
 // Function to read a music entry
-struct Music* read_music(struct Music *m, int c) {
-    m = (struct Music*)realloc(m, (c + 1) * sizeof(struct Music));
+struct Music* read_music(struct Music *m, int *c) {
+    m = (struct Music*)realloc(m, (*c + 1) * sizeof(struct Music));
+
+    char name[100];
 
     printf("\nEnter music name: ");
-    scanf("%s", m[c].name);
+    scanf("%s", name);
+
+    // Verifique se o nome da música já existe
+    if (is_duplicate(m, *c, name)) {
+        printf("Error: Music with the same name already exists.\n");
+        return m;
+    }
+
+    strcpy(m[*c].name, name);
 
     printf("Enter music duration (in seconds): ");
-    scanf("%d", &(m[c].duration));
+    scanf("%d", &(m[*c].duration));
 
     printf("Enter music style: ");
-    scanf("%s", m[c].style);
+    scanf("%s", m[*c].style);
 
-    read_artist(&(m[c].artist));
-    read_date(&(m[c].date));
+    read_artist(&(m[*c].artist));
+    read_date(&(m[*c].date));
+
+    (*c)++;
 
     return m;
 }
 
 // Function to display all music entries
 void show_musics(struct Music *m, int c) {
-    printf("\nMUSIC LIST\n\n");
+    if (c == 0) {
+        printf("There are no stored musics\n");
+        return;
+    }
+
+    printf("\nList of stored musics\n\n");
+    printf("Music\t\t\tArtist\t\t\tNacionality\tCreated at\n");
+    printf("-------------------\t-----------------------\t---------------\t-------------\n");
 
     for (int i = 0; i < c; i++) {
-        printf("Music %d\n", i + 1);
-        printf("Name: %s\n", m[i].name);
-        printf("Duration: %d seconds\n", m[i].duration);
-        printf("Style: %s\n", m[i].style);
-        printf("Artist: %s\n", m[i].artist.name);
-        printf("Nationality: %s\n", m[i].artist.nationality);
-        printf("Date: %d/%d/%d\n\n", m[i].date.day, m[i].date.month, m[i].date.year);
+        printf("%-20s\t%-23s\t%-15s\t%02d/%02d/%04d\n", m[i].name, m[i].artist.name, m[i].artist.nationality, m[i].date.day, m[i].date.month, m[i].date.year);
     }
 }
 
 // Function to store music data in the binary file
 void store_music(struct Music *m, int c) {
-    FILE *file = fopen(TARGET_FILE, "wb");
+    FILE *file = fopen("database.bin", "wb");
 
     if (file == NULL) {
         printf("Failed to open file for writing.");
@@ -157,45 +165,67 @@ void store_music(struct Music *m, int c) {
 }
 
 void delete_music(struct Music *m, int *c) {
-    int index;
-    
-    printf("Enter the index of the music to delete: ");
-    scanf("%d", &index);
-    
-    if (index < 1 || index > *c) {
-        printf("Invalid index.\n");
+    char name[100];
+
+    printf("Enter the name of the music to delete: ");
+    scanf("%s", name);
+
+    int index = -1;
+
+    for (int i = 0; i < *c; i++) {
+        if (strcmp(m[i].name, name) == 0) {
+            index = i;
+            break;
+        }
+    }
+
+    if (index == -1) {
+        printf("Music not found.\n");
         return;
     }
 
-    for (int i = index - 1; i < *c - 1; i++) {
+    for (int i = index; i < *c - 1; i++) {
         m[i] = m[i + 1];
     }
-    
+
     (*c)--;
-    
+
     printf("Music deleted successfully.\n");
 }
 
 void read_music_details(struct Music *m, int c) {
-    int index;
-    
-    printf("Enter the index of the music to read: ");
-    scanf("%d", &index);
-    
-    if (index < 1 || index > c) {
-        printf("Invalid index.\n");
+    char name[100];
+
+    printf("Enter the name of the music to read: ");
+    scanf("%s", name);
+
+    int index = -1;
+
+    for (int i = 0; i < c; i++) {
+        if (strcmp(m[i].name, name) == 0) {
+            index = i;
+            break;
+        }
+    }
+
+    if (index == -1) {
+        printf("Music not found.\n");
         return;
     }
-    
-    index--;
-    
-    printf("\nMusic %d\n", index + 1);
-    printf("Name: %s\n", m[index].name);
-    printf("Duration: %d seconds\n", m[index].duration);
-    printf("Style: %s\n", m[index].style);
-    printf("Artist: %s\n", m[index].artist.name);
-    printf("Nationality: %s\n", m[index].artist.nationality);
-    printf("Date: %d/%d/%d\n\n", m[index].date.day, m[index].date.month, m[index].date.year);
+
+    printf("\nMusic %d\n\n", index + 1);
+    printf("Music\t\t\tArtist\t\t\tNacionality\tCreated at\n");
+    printf("-------------------\t-----------------------\t---------------\t-------------\n");
+    printf("%-20s\t%-23s\t%-15s\t%02d/%02d/%04d\n", m[index].name, m[index].artist.name, m[index].artist.nationality, m[index].date.day, m[index].date.month, m[index].date.year);
+}
+
+bool is_duplicate(struct Music *m, int count, const char *name) {
+    for (int i = 0; i < count; i++) {
+        if (strcmp(m[i].name, name) == 0) {
+            return true; // Já existe uma música com o mesmo nome
+        }
+    }
+    return false; // O nome da música é único
 }
 
 // ------------------------------------------------------------------------------------
@@ -214,8 +244,7 @@ int main(int argc, char const *argv[]) {
     int opt; while (true) { ask(&opt);
         switch (opt) {
             case 1:
-                musics = read_music(musics, count);
-                count++;
+                musics = read_music(musics, &count);
                 break;
 
             case 2:
