@@ -2,6 +2,10 @@
     "files.associations": {
         "*.c": "c",
         "filehandle.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "uilib.h": "c",
+        "flib.h": "c",
+        "lib.h": "c",
+        "structures.h": "c"
     }
 }
